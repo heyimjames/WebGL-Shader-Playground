@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Shader Playground</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --bg-tertiary: #ececf1;
+            --text-primary: #202123;
+            --text-secondary: #6e6e80;
+            --text-tertiary: #acacbe;
+            --border-primary: #e5e5e5;
+            --border-secondary: #d9d9e3;
+            --accent: #10a37f;
+            --accent-hover: #0d8f6e;
+            --code-bg: #f7f7f8;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #202123;
+                --bg-secondary: #2a2b32;
+                --bg-tertiary: #353740;
+                --text-primary: #ffffff;
+                --text-secondary: #c5c5d2;
+                --text-tertiary: #8e8ea0;
+                --border-primary: #353740;
+                --border-secondary: #444654;
+                --accent: #10a37f;
+                --accent-hover: #1a7f5e;
+                --code-bg: #2a2b32;
+            }
+        }
+        
+        html, body { 
+            height: 100%; 
+            overflow: hidden; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        #container { 
+            display: flex; 
+            height: 100%;
+        }
+        
+        #sidebar { 
+            width: 320px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        #header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+        }
+        
+        #header p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        
+        #shaderInfo {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-primary);
+            background: var(--bg-primary);
+        }
+        
+        #shaderInfo h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #shaderInfo p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        #controls { 
+            padding: 20px;
+            display: flex; 
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .shader-categories {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .category-tag {
+            padding: 4px 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+        }
+        
+        .category-tag:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .category-tag.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        #keyboardShortcuts {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        #keyboardShortcuts.active {
+            display: block;
+        }
+        
+        #keyboardShortcuts h3 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 16px;
+            font-size: 13px;
+        }
+        
+        .shortcut-key {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-family: 'SF Mono', monospace;
+            font-size: 11px;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        
+        .shortcut-description {
+            color: var(--text-secondary);
+        }
+        
+        #shortcutsOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: none;
+        }
+        
+        #shortcutsOverlay.active {
+            display: block;
+        }
+        
+        .auto-save-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+        
+        .control-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        select { 
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        select:hover {
+            border-color: var(--text-tertiary);
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+        
+        #runBtn { 
+            padding: 10px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        #runBtn:hover {
+            background: var(--accent-hover);
+        }
+        
+        #runBtn:active {
+            transform: scale(0.98);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .secondary-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .secondary-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+        }
+        
+        .secondary-btn:active {
+            transform: scale(0.98);
+        }
+        
+        #sidebarContent {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #parametersSection {
+            padding: 20px;
+        }
+        
+        #parametersSection h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 16px 0;
+        }
+        
+        .parameter { 
+            margin-bottom: 20px;
+        }
+        
+        .parameter label { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        
+        .parameter input[type="range"] { 
+            width: 100%;
+            height: 4px;
+            background: var(--border-primary);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+        
+        .parameter input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .parameter input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        
+        .parameter input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .parameter-value {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+        
+        #mainContent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+        
+        #editorTabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 0 20px;
+        }
+        
+        .tab {
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .tab:hover {
+            color: var(--text-primary);
+        }
+        
+        .tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent);
+        }
+        
+        #editorContainer {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+        
+        .editor-pane {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .editor-pane.active {
+            display: flex;
+        }
+        
+        .editor-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+        }
+        
+        .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 40px;
+            background: var(--bg-tertiary);
+            border-right: 1px solid var(--border-secondary);
+            padding: 16px 0;
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-tertiary);
+            text-align: right;
+            overflow: hidden;
+            user-select: none;
+        }
+        
+        .line-numbers div {
+            padding-right: 8px;
+        }
+        
+        .line-numbers .error-line {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            font-weight: bold;
+        }
+        
+        textarea {
+            flex: 1;
+            background: var(--code-bg);
+            color: var(--text-primary);
+            border: none;
+            padding: 16px;
+            padding-left: 56px;
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+        
+        #canvasContainer {
+            flex: 1;
+            position: relative;
+            background: #000;
+        }
+        
+        #glCanvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block;
+        }
+        
+        #fpsCounter {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #10a37f;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 120px;
+        }
+        
+        #fpsCounter.active {
+            display: block;
+        }
+        
+        #fpsCounter > div:first-child {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+        
+        #fullscreenBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 16px;
+        }
+        
+        #fullscreenBtn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+        
+        #helpButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-md);
+        }
+        
+        #helpButton:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        #helpModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        #helpModal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .modal-body h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+        
+        .modal-body p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin: 0 0 16px 0;
+        }
+        
+        .modal-body pre {
+            background: var(--code-bg);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0 0 16px 0;
+        }
+        
+        .modal-body code {
+            font-family: 'SF Mono', monospace;
+        }
+        
+        #log { 
+            height: 120px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-primary);
+            padding: 16px 20px;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-y: auto;
+            color: var(--text-secondary);
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+        
+        .success {
+            color: var(--accent);
+        }
+        
+        #footer {
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-primary);
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        #footer a {
+            color: var(--accent);
+            text-decoration: none;
+            margin: 0 4px;
+            transition: opacity 0.2s ease;
+        }
+        
+        #footer a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+        
+        .code-example {
+            background: var(--code-bg);
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        
+        .tip-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+        
+        .tip-box h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: var(--accent);
+        }
+        
+        .tip-box p {
+            font-size: 13px;
+            margin: 0;
+        }
+        
+        .modal-body ul {
+            margin: 0 0 16px 0;
+            padding-left: 20px;
+        }
+        
+        .modal-body li {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .shortcuts-table {
+            width: 100%;
+            margin: 16px 0;
+            border-collapse: collapse;
+        }
+        
+        .shortcuts-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-primary);
+            font-size: 13px;
+        }
+        
+        .shortcuts-table td:first-child {
+            font-family: 'SF Mono', monospace;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        #saveModal, #exportModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        #saveModal.active, #exportModal.active {
+            display: flex;
+        }
+        
+        .save-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 16px 0;
+        }
+        
+        .save-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .save-item:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-secondary);
+        }
+        
+        .save-item-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .save-item-date {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .delete-save {
+            padding: 4px 8px;
+            background: transparent;
+            color: var(--text-tertiary);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-save:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .input-group {
+            margin: 16px 0;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-actions .primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .modal-actions .primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .modal-actions .secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+        }
+        
+        .modal-actions .secondary:hover {
+            background: var(--bg-secondary);
+        }
+        
+        #shareUrl {
+            word-break: break-all;
+            background: var(--code-bg);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            margin: 16px 0;
+            user-select: all;
+        }
+        
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .copy-btn.copied {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        #textureSection {
+            padding: 20px;
+            padding-bottom: 30px;
+            border-top: 1px solid var(--border-primary);
+        }
+        
+        #textureSection h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 16px 0;
+        }
+        
+        .texture-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .texture-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+        }
+        
+        .texture-preview {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-tertiary);
+        }
+        
+        .texture-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .texture-info {
+            flex: 1;
+        }
+        
+        .texture-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .texture-uniform {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .texture-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .texture-btn {
+            padding: 6px 12px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .texture-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+        }
+        
+        .texture-btn.remove {
+            color: #ef4444;
+        }
+        
+        #addTextureBtn {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        #addTextureBtn:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        /* Prism.js overrides for our theme */
+        pre[class*="language-"] {
+            background: var(--code-bg);
+            margin: 0;
+            padding: 0;
+        }
+        
+        code[class*="language-"] {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .token.keyword {
+            color: #c678dd;
+        }
+        
+        .token.function {
+            color: #61afef;
+        }
+        
+        .token.number {
+            color: #d19a66;
+        }
+        
+        .token.comment {
+            color: #5c6370;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <div id="header">
+                <h1>Shader Playground</h1>
+                <p>Explore and create WebGL shaders</p>
+            </div>
+            
+            <div id="sidebarContent">
+                <div id="shaderInfo">
+                    <h2><span id="shaderIcon">🔮</span> <span id="shaderName">Kaleidoscope</span></h2>
+                    <p id="shaderDescription">Symmetrical patterns that create mesmerizing kaleidoscope effects. Mouse controls rotation and complexity.</p>
+                </div>
+                
+                <div id="controls">
+                    <div class="control-group">
+                        <label>Filter by Category</label>
+                        <div class="shader-categories">
+                            <div class="category-tag active" data-category="all">All</div>
+                            <div class="category-tag" data-category="2d">2D</div>
+                            <div class="category-tag" data-category="3d">3D</div>
+                            <div class="category-tag" data-category="generative">Generative</div>
+                            <div class="category-tag" data-category="interactive">Interactive</div>
+                            <div class="category-tag" data-category="image">Image</div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Select Shader</label>
+                        <select id="shaderSelect">
+                            <option value="kaleidoscope">Kaleidoscope</option>
+                            <option value="glass">Glass Refraction</option>
+                            <option value="rainbow">Rainbow Gradient</option>
+                            <option value="plasma">Plasma Effect</option>
+                            <option value="mandelbrot">Mandelbrot Fractal</option>
+                            <option value="raymarching">3D Spheres</option>
+                            <option value="voronoi">Voronoi Cells</option>
+                            <option value="fractal">Fractal Noise</option>
+                            <option value="waves">Wave Interference</option>
+                            <option value="tunnel">Psychedelic Tunnel</option>
+                            <option value="imageEffect">Image Effects</option>
+                            <option value="fractal3d">3D Fractal Explorer</option>
+                            <option value="custom">Custom Shader</option>
+                        </select>
+                    </div>
+                    <button id="runBtn">Run Shader</button>
+                    <div class="button-group">
+                        <button id="saveBtn" class="secondary-btn">Save</button>
+                        <button id="exportBtn" class="secondary-btn">Export</button>
+                        <button id="shareBtn" class="secondary-btn">Share</button>
+                    </div>
+                </div>
+                
+                <div id="parametersSection">
+                    <h3>Parameters</h3>
+                    <div id="parametersList"></div>
+                </div>
+                
+                <div id="textureSection">
+                    <h3>Textures</h3>
+                    <div class="texture-upload" id="textureList">
+                        <p style="text-align: center; color: var(--text-secondary); font-size: 12px;">No textures loaded</p>
+                    </div>
+                    <button id="addTextureBtn">
+                        <span>+</span>
+                        <span>Add Texture</span>
+                    </button>
+                    <input type="file" id="textureInput" accept="image/*">
+                </div>
+            </div>
+            
+            <div id="footer">
+                <p>Built by <a href="https://twitter.com/jamesfrewin1" target="_blank">@jamesfrewin1</a> • <a href="https://github.com/heyimjames" target="_blank">GitHub</a></p>
+                <p style="margin-top: 4px;">Press <span style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', monospace; font-size: 10px;">?</span> for keyboard shortcuts</p>
+            </div>
+        </div>
+        
+        <div id="mainContent">
+            <div id="editorTabs">
+                <div class="tab active" data-tab="vertex">Vertex Shader</div>
+                <div class="tab" data-tab="fragment">Fragment Shader</div>
+                <div class="auto-save-indicator">✓ Auto-saved</div>
+            </div>
+            
+            <div id="editorContainer">
+                <div class="editor-wrapper">
+                    <div class="line-numbers" id="vertexLineNumbers"></div>
+                    <textarea id="vertexEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                </div>
+                <div class="editor-wrapper" style="display: none;">
+                    <div class="line-numbers" id="fragmentLineNumbers"></div>
+                    <textarea id="fragmentEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                </div>
+                <div id="canvasContainer">
+                    <canvas id="glCanvas"></canvas>
+                    <div id="fpsCounter">60 FPS</div>
+                    <button id="fullscreenBtn" title="Fullscreen">⛶</button>
+                </div>
+            </div>
+            
+            <div id="log"></div>
+        </div>
+        
+        <button id="helpButton">?</button>
+    </div>
+    
+    <div id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>How to Use Shader Playground</h2>
+                <button class="modal-close" id="closeHelp">✕</button>
+            </div>
+            <div class="modal-body">
+                <h3>Getting Started</h3>
+                <p>This playground lets you write and run WebGL shaders in real-time. Select a preset shader from the dropdown or write your own custom shader code.</p>
+                
+                <h3>Available Uniforms</h3>
+                <p>All shaders have access to these built-in uniforms:</p>
+                <pre><code>uniform float u_time;       // Time in seconds
+uniform vec2 u_resolution;  // Canvas resolution
+uniform vec2 u_mouse;       // Mouse position</code></pre>
+                
+                <h3>Writing Your First Shader</h3>
+                <p>Start with this simple template:</p>
+                <div class="code-example">void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    vec3 color = vec3(st.x, st.y, 0.0);
+    gl_FragColor = vec4(color, 1.0);
+}</div>
+                
+                <div class="tip-box">
+                    <h4>💡 Pro Tip</h4>
+                    <p>Normalize coordinates to 0-1 range using <code>gl_FragCoord.xy / u_resolution</code> for resolution-independent shaders.</p>
+                </div>
+                
+                <h3>Common Shader Techniques</h3>
+                <ul>
+                    <li><strong>Gradients:</strong> Use normalized coordinates directly as colors</li>
+                    <li><strong>Patterns:</strong> Apply sin(), cos(), or fract() to coordinates</li>
+                    <li><strong>Shapes:</strong> Use distance functions and step() or smoothstep()</li>
+                    <li><strong>Animation:</strong> Add u_time to any calculation</li>
+                    <li><strong>Interaction:</strong> Use u_mouse for dynamic effects</li>
+                </ul>
+                
+                <h3>Useful Functions</h3>
+                <div class="code-example">// Smooth interpolation
+smoothstep(edge0, edge1, x)
+
+// Mixing colors
+mix(color1, color2, factor)
+
+// Distance from point
+length(vec2) or distance(p1, p2)
+
+// Clamping values
+clamp(value, min, max)
+
+// Fractional part (creates repetition)
+fract(value)</div>
+                
+                <h3>Adding Your Own Shader</h3>
+                <p>To add a new shader to the playground:</p>
+                <pre><code>// In main.js, add to the SHADERS object:
+myShader: {
+    name: "My Shader",
+    vertex: `...`,     // Vertex shader code
+    fragment: `...`,   // Fragment shader code
+    uniforms: {
+        u_myParam: {
+            type: 'float',
+            value: 1.0,     // Default value
+            min: 0.0,       // Slider minimum
+            max: 2.0,       // Slider maximum
+            step: 0.1,      // Slider step
+            name: 'My Param'
+        }
+    }
+}</code></pre>
+                
+                <h3>Keyboard Shortcuts</h3>
+                <table class="shortcuts-table">
+                    <tr>
+                        <td>Ctrl/Cmd + Enter</td>
+                        <td>Run the shader</td>
+                    </tr>
+                    <tr>
+                        <td>Tab</td>
+                        <td>Switch between vertex/fragment editors</td>
+                    </tr>
+                    <tr>
+                        <td>F</td>
+                        <td>Toggle FPS counter</td>
+                    </tr>
+                    <tr>
+                        <td>F11</td>
+                        <td>Toggle fullscreen</td>
+                    </tr>
+                </table>
+                
+                <h3>Performance Tips</h3>
+                <ul>
+                    <li>Avoid complex calculations in loops</li>
+                    <li>Pre-calculate values that don't change per pixel</li>
+                    <li>Use built-in functions when possible (they're optimized)</li>
+                    <li>Minimize texture lookups</li>
+                    <li>Test on different devices - mobile GPUs are less powerful</li>
+                </ul>
+                
+                <div class="tip-box">
+                    <h4>🎨 Color Tip</h4>
+                    <p>Work in HSV color space for more intuitive color manipulation. Convert to RGB before output.</p>
+                </div>
+                
+                <h3>Resources</h3>
+                <ul>
+                    <li><a href="https://thebookofshaders.com" target="_blank" style="color: var(--accent)">The Book of Shaders</a> - Comprehensive shader tutorial</li>
+                    <li><a href="https://www.shadertoy.com" target="_blank" style="color: var(--accent)">Shadertoy</a> - Community shader playground</li>
+                    <li><a href="https://iquilezles.org/articles/" target="_blank" style="color: var(--accent)">Inigo Quilez Articles</a> - Advanced techniques</li>
+                    <li><a href="https://github.com/patriciogonzalezvivo/glslViewer" target="_blank" style="color: var(--accent)">glslViewer</a> - Command line shader tool</li>
+                </ul>
+                
+                <h3>Using Textures</h3>
+                <p>Load images as textures and use them in your shaders:</p>
+                <div class="code-example">// Declare in fragment shader
+uniform sampler2D u_texture0;
+
+// Sample the texture
+vec4 color = texture2D(u_texture0, st);</div>
+                
+                <div class="tip-box">
+                    <h4>🖼️ Texture Tip</h4>
+                    <p>Textures are automatically assigned to uniforms u_texture0, u_texture1, etc. Use texture coordinates (UV) to sample them.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="saveModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Saved Shaders</h2>
+                <button class="modal-close" id="closeSave">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Save current shader as:</label>
+                    <input type="text" id="saveNameInput" placeholder="My awesome shader">
+                </div>
+                <div class="save-list" id="saveList"></div>
+                <div class="modal-actions">
+                    <button class="primary" id="saveShaderBtn">Save Shader</button>
+                    <button class="secondary" id="cancelSaveBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Export Shader</h2>
+                <button class="modal-close" id="closeExport">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>Export your shader as a standalone HTML file that runs anywhere:</p>
+                <div class="input-group">
+                    <label>File name:</label>
+                    <input type="text" id="exportNameInput" placeholder="my-shader" value="my-shader">
+                </div>
+                <div class="modal-actions">
+                    <button class="primary" id="downloadBtn">Download HTML</button>
+                    <button class="secondary" id="cancelExportBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="shareModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Shader</h2>
+                <button class="modal-close" id="closeShare">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>Share this URL to let others see your shader:</p>
+                <div id="shareUrl"></div>
+                <button class="copy-btn" id="copyShareBtn">
+                    <span>📋</span>
+                    <span>Copy URL</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="shortcutsOverlay"></div>
+    <div id="keyboardShortcuts">
+        <h3>⌨️ Keyboard Shortcuts</h3>
+        <div class="shortcuts-grid">
+            <div class="shortcut-key">Ctrl/Cmd + Enter</div>
+            <div class="shortcut-description">Run shader</div>
+            
+            <div class="shortcut-key">F</div>
+            <div class="shortcut-description">Toggle FPS counter</div>
+            
+            <div class="shortcut-key">F11</div>
+            <div class="shortcut-description">Toggle fullscreen</div>
+            
+            <div class="shortcut-key">Tab</div>
+            <div class="shortcut-description">Switch between editors</div>
+            
+            <div class="shortcut-key">Ctrl/Cmd + S</div>
+            <div class="shortcut-description">Save shader</div>
+            
+            <div class="shortcut-key">Ctrl/Cmd + E</div>
+            <div class="shortcut-description">Export shader</div>
+            
+            <div class="shortcut-key">Ctrl/Cmd + /</div>
+            <div class="shortcut-description">Toggle comment</div>
+            
+            <div class="shortcut-key">Esc</div>
+            <div class="shortcut-description">Close dialogs</div>
+            
+            <div class="shortcut-key">?</div>
+            <div class="shortcut-description">Show this help</div>
+        </div>
+        <p style="margin-top: 16px; text-align: center; color: var(--text-secondary); font-size: 12px;">Click anywhere or press Esc to close</p>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-glsl.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html> 
