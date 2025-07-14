@@ -1067,6 +1067,178 @@
             color: #5c6370;
             font-style: italic;
         }
+
+        .time-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        
+        .time-control-btn {
+            padding: 6px 10px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .time-control-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+        }
+        
+        .time-control-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        .speed-slider {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .speed-slider input {
+            flex: 1;
+        }
+        
+        .speed-display {
+            font-size: 11px;
+            color: var(--text-secondary);
+            min-width: 30px;
+            text-align: right;
+        }
+        
+        #screenshotBtn {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        #screenshotBtn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .comparison-mode {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .comparison-mode.active {
+            display: block;
+        }
+        
+        #comparisonCanvas {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            border-left: 2px solid var(--accent);
+            display: none;
+        }
+        
+        #comparisonCanvas.active {
+            display: block;
+        }
+        
+        .snippets-menu {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 8px;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .snippets-menu.active {
+            display: block;
+        }
+        
+        .snippet-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s ease;
+        }
+        
+        .snippet-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .snippet-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .snippet-preview {
+            font-family: 'SF Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        #snippetsBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 10px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        #snippetsBtn:hover {
+            background: var(--bg-primary);
+            border-color: var(--text-tertiary);
+        }
     </style>
 </head>
 <body>
@@ -1110,6 +1282,19 @@
                             <option value="tunnel">Psychedelic Tunnel</option>
                             <option value="imageEffect">Image Effects</option>
                             <option value="fractal3d">3D Fractal Explorer</option>
+                            <option value="matrixRain">Matrix Rain</option>
+                            <option value="neonGrid">Neon Grid</option>
+                            <option value="lavaLamp">Lava Lamp</option>
+                            <option value="starfield">Starfield</option>
+                            <option value="fluidSimulation">Fluid Simulation</option>
+                            <option value="circuitBoard">Circuit Board</option>
+                            <option value="galaxySpiral">Galaxy Spiral</option>
+                            <option value="dnaHelix">DNA Helix</option>
+                            <option value="aurora">Aurora Borealis</option>
+                            <option value="meshGradient">Mesh Gradient</option>
+                            <option value="gradientNoise">Gradient Noise</option>
+                            <option value="liquidMetal">Liquid Metal</option>
+                            <option value="holographicGradient">Holographic Gradient</option>
                             <option value="custom">Custom Shader</option>
                         </select>
                     </div>
@@ -1118,6 +1303,20 @@
                         <button id="saveBtn" class="secondary-btn">Save</button>
                         <button id="exportBtn" class="secondary-btn">Export</button>
                         <button id="shareBtn" class="secondary-btn">Share</button>
+                    </div>
+                    
+                    <div class="time-controls">
+                        <button class="time-control-btn" id="playPauseBtn" title="Play/Pause">
+                            <span id="playPauseIcon">⏸</span>
+                        </button>
+                        <button class="time-control-btn" id="resetTimeBtn" title="Reset Time">
+                            <span>⏮</span>
+                        </button>
+                        <div class="speed-slider">
+                            <label style="font-size: 11px; color: var(--text-secondary);">Speed:</label>
+                            <input type="range" id="speedSlider" min="-2" max="2" value="1" step="0.1">
+                            <span class="speed-display" id="speedDisplay">1x</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -1153,6 +1352,8 @@
             </div>
             
             <div id="editorContainer">
+                <button id="snippetsBtn">📝 Snippets</button>
+                <div class="snippets-menu" id="snippetsMenu"></div>
                 <div class="editor-wrapper">
                     <div class="line-numbers" id="vertexLineNumbers"></div>
                     <textarea id="vertexEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
@@ -1163,8 +1364,11 @@
                 </div>
                 <div id="canvasContainer">
                     <canvas id="glCanvas"></canvas>
+                    <canvas id="comparisonCanvas"></canvas>
                     <div id="fpsCounter">60 FPS</div>
-                    <button id="fullscreenBtn" title="Fullscreen">⛶</button>
+                    <button id="fullscreenBtn" title="Toggle Fullscreen">⛶</button>
+                    <button id="screenshotBtn" title="Take Screenshot">📸 Screenshot</button>
+                    <div class="comparison-mode" id="comparisonMode">Comparison Mode</div>
                 </div>
             </div>
             
@@ -1386,6 +1590,9 @@ vec4 color = texture2D(u_texture0, st);</div>
             
             <div class="shortcut-key">Ctrl/Cmd + /</div>
             <div class="shortcut-description">Toggle comment</div>
+            
+            <div class="shortcut-key">Ctrl/Cmd + D</div>
+            <div class="shortcut-description">Toggle comparison mode</div>
             
             <div class="shortcut-key">Esc</div>
             <div class="shortcut-description">Close dialogs</div>

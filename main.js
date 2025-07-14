@@ -49,6 +49,135 @@ const textureList = document.getElementById('textureList');
 const vertexLineNumbers = document.getElementById('vertexLineNumbers');
 const fragmentLineNumbers = document.getElementById('fragmentLineNumbers');
 
+// New feature elements
+const playPauseBtn = document.getElementById('playPauseBtn');
+const playPauseIcon = document.getElementById('playPauseIcon');
+const resetTimeBtn = document.getElementById('resetTimeBtn');
+const speedSlider = document.getElementById('speedSlider');
+const speedDisplay = document.getElementById('speedDisplay');
+const screenshotBtn = document.getElementById('screenshotBtn');
+const snippetsBtn = document.getElementById('snippetsBtn');
+const snippetsMenu = document.getElementById('snippetsMenu');
+const comparisonCanvas = document.getElementById('comparisonCanvas');
+const comparisonMode = document.getElementById('comparisonMode');
+
+// Time control variables
+let isPlaying = true;
+let timeSpeed = 1.0;
+let baseTime = 0;
+let pausedTime = 0;
+
+// Comparison mode
+let comparisonShader = null;
+let comparisonGL = null;
+let comparisonProgram = null;
+let comparisonBuffers = null;
+
+// Code snippets
+const codeSnippets = {
+    noise: {
+        title: "Noise Functions",
+        code: `// Simple noise function
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+
+// Smooth noise
+float noise(vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    
+    return mix(mix(random(i), random(i + vec2(1.0, 0.0)), u.x),
+               mix(random(i + vec2(0.0, 1.0)), random(i + vec2(1.0, 1.0)), u.x), u.y);
+}`
+    },
+    sdf: {
+        title: "SDF Shapes",
+        code: `// Circle SDF
+float sdCircle(vec2 p, float r) {
+    return length(p) - r;
+}
+
+// Box SDF
+float sdBox(vec2 p, vec2 b) {
+    vec2 d = abs(p) - b;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+
+// Smooth union
+float opSmoothUnion(float d1, float d2, float k) {
+    float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+    return mix(d2, d1, h) - k * h * (1.0 - h);
+}`
+    },
+    color: {
+        title: "Color Utilities",
+        code: `// HSB to RGB
+vec3 hsb2rgb(vec3 c) {
+    vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    rgb = rgb * rgb * (3.0 - 2.0 * rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
+
+// Palette generator
+vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
+    return a + b * cos(6.28318 * (c * t + d));
+}`
+    },
+    transform: {
+        title: "2D Transformations",
+        code: `// Rotation matrix
+mat2 rotate2d(float angle) {
+    return mat2(cos(angle), -sin(angle),
+                sin(angle), cos(angle));
+}
+
+// Scale from center
+vec2 scale(vec2 st, float scale) {
+    return (st - 0.5) * scale + 0.5;
+}
+
+// Translate
+vec2 translate(vec2 st, vec2 offset) {
+    return st + offset;
+}`
+    },
+    lighting: {
+        title: "Lighting",
+        code: `// Phong lighting
+vec3 phong(vec3 normal, vec3 lightDir, vec3 viewDir, vec3 color) {
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    
+    vec3 ambient = 0.1 * color;
+    vec3 diffuse = diff * color;
+    vec3 specular = spec * vec3(1.0);
+    
+    return ambient + diffuse + specular;
+}`
+    },
+    effects: {
+        title: "Post Effects",
+        code: `// Chromatic aberration
+vec3 chromaticAberration(sampler2D tex, vec2 uv, float amount) {
+    vec3 color;
+    color.r = texture2D(tex, uv + vec2(amount, 0.0)).r;
+    color.g = texture2D(tex, uv).g;
+    color.b = texture2D(tex, uv - vec2(amount, 0.0)).b;
+    return color;
+}
+
+// Vignette
+float vignette(vec2 uv, float intensity, float extent) {
+    uv *= 1.0 - uv.yx;
+    float vig = uv.x * uv.y * 15.0;
+    return pow(vig, extent * intensity);
+}`
+    }
+};
+
 // Shader descriptions
 const shaderDescriptions = {
     kaleidoscope: {
@@ -110,6 +239,71 @@ const shaderDescriptions = {
         icon: "🌌",
         description: "3D fractal with ray marching and dynamic lighting. Navigate through infinite mathematical structures.",
         categories: ["3d", "interactive", "generative"]
+    },
+    matrixRain: {
+        icon: "💻",
+        description: "Digital rain effect inspired by The Matrix. Adjust speed and density of falling characters.",
+        categories: ["2d", "generative"]
+    },
+    neonGrid: {
+        icon: "🌃",
+        description: "Retro synthwave grid with perspective and neon glow. Mouse controls the light source.",
+        categories: ["2d", "interactive", "generative"]
+    },
+    lavaLamp: {
+        icon: "🌋",
+        description: "Mesmerizing lava lamp simulation with flowing blobs and color transitions.",
+        categories: ["2d", "generative"]
+    },
+    starfield: {
+        icon: "⭐",
+        description: "Infinite starfield with warp speed effect. Multiple layers create depth and motion.",
+        categories: ["2d", "generative"]
+    },
+    fluidSimulation: {
+        icon: "💧",
+        description: "Interactive fluid dynamics simulation. Mouse movement creates currents and vortices.",
+        categories: ["2d", "interactive", "generative"]
+    },
+    circuitBoard: {
+        icon: "🔌",
+        description: "Animated circuit board pattern with glowing traces and nodes. Cyberpunk aesthetic.",
+        categories: ["2d", "generative"]
+    },
+    galaxySpiral: {
+        icon: "🌌",
+        description: "Spiral galaxy with rotating arms, stars, and nebula clouds. Cosmic beauty.",
+        categories: ["2d", "generative"]
+    },
+    dnaHelix: {
+        icon: "🧬",
+        description: "Double helix DNA structure with animated rotation and colorful strands.",
+        categories: ["2d", "generative"]
+    },
+    aurora: {
+        icon: "🌌",
+        description: "Northern lights simulation with flowing bands of color across the sky.",
+        categories: ["2d", "generative"]
+    },
+    meshGradient: {
+        icon: "🎨",
+        description: "Smooth mesh gradient with animated control points and film grain. Modern design aesthetic.",
+        categories: ["2d", "generative"]
+    },
+    gradientNoise: {
+        icon: "🌈",
+        description: "Flowing gradient with organic noise patterns and grain effects. Perfect for backgrounds.",
+        categories: ["2d", "generative"]
+    },
+    liquidMetal: {
+        icon: "🪙",
+        description: "Interactive liquid metal surface with realistic reflections and mouse-controlled ripples.",
+        categories: ["2d", "interactive", "generative"]
+    },
+    holographicGradient: {
+        icon: "✨",
+        description: "Iridescent holographic effect with interference patterns and sparkles. Futuristic look.",
+        categories: ["2d", "generative"]
     }
 };
 
@@ -882,6 +1076,998 @@ void main() {
             u_tunnelSpeed: { type: 'float', value: 0.5, min: 0.1, max: 2.0, step: 0.1, name: 'Tunnel Speed' },
             u_tunnelTwist: { type: 'float', value: 0.2, min: 0.0, max: 1.0, step: 0.05, name: 'Tunnel Twist' }
         }
+    },
+    
+    matrixRain: {
+        name: "Matrix Rain",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_speed;
+uniform float u_density;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    // Create columns
+    float columns = 80.0;
+    float column = floor(st.x * columns);
+    
+    // Random speed per column
+    float speed = random(vec2(column, 0.0)) * 0.5 + u_speed;
+    
+    // Character positions
+    float y = fract(st.y - u_time * speed);
+    float fade = 1.0 - y;
+    fade = pow(fade, 3.0);
+    
+    // Random characters
+    float char = random(vec2(column, floor(y * 20.0 + u_time * speed * 20.0)));
+    
+    // Green color with fade
+    vec3 color = vec3(0.0, 1.0, 0.0) * fade;
+    
+    // Add some glow
+    color += vec3(0.0, 0.3, 0.0) * (1.0 - st.y) * 0.5;
+    
+    // Density threshold
+    float show = step(u_density, random(vec2(column, floor(y * 30.0))));
+    color *= show;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_speed: { type: 'float', value: 0.5, min: 0.1, max: 2.0, step: 0.1, name: 'Fall Speed' },
+            u_density: { type: 'float', value: 0.5, min: 0.0, max: 1.0, step: 0.05, name: 'Character Density' }
+        }
+    },
+    
+    neonGrid: {
+        name: "Neon Grid",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_gridSize;
+uniform float u_lineWidth;
+uniform float u_glowIntensity;
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    vec2 mouse = u_mouse / u_resolution;
+    
+    // Perspective transform
+    st -= 0.5;
+    float perspective = 1.0 + st.y * 0.5;
+    st.x /= perspective;
+    st += 0.5;
+    
+    // Moving grid
+    st.y += u_time * 0.1;
+    
+    // Grid lines
+    vec2 grid = fract(st * u_gridSize);
+    float lineX = smoothstep(0.0, u_lineWidth, grid.x) * smoothstep(1.0, 1.0 - u_lineWidth, grid.x);
+    float lineY = smoothstep(0.0, u_lineWidth, grid.y) * smoothstep(1.0, 1.0 - u_lineWidth, grid.y);
+    float lines = 1.0 - max(lineX, lineY);
+    
+    // Distance from mouse
+    float mouseDist = length(st - mouse);
+    float mouseGlow = 1.0 / (mouseDist * 10.0 + 1.0);
+    
+    // Neon colors
+    vec3 color = vec3(0.0);
+    color += vec3(0.0, 1.0, 1.0) * lines * (1.0 + mouseGlow);
+    color += vec3(1.0, 0.0, 1.0) * lines * u_glowIntensity * 0.5;
+    
+    // Fade to horizon
+    color *= 1.0 - st.y * 0.5;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_gridSize: { type: 'float', value: 20.0, min: 5.0, max: 50.0, step: 1.0, name: 'Grid Size' },
+            u_lineWidth: { type: 'float', value: 0.02, min: 0.001, max: 0.1, step: 0.001, name: 'Line Width' },
+            u_glowIntensity: { type: 'float', value: 2.0, min: 0.0, max: 5.0, step: 0.1, name: 'Glow Intensity' }
+        }
+    },
+    
+    lavaLamp: {
+        name: "Lava Lamp",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_blobSize;
+uniform float u_speed;
+uniform float u_colorShift;
+
+float blob(vec2 st, vec2 center, float size) {
+    float d = length(st - center);
+    return smoothstep(size, size * 0.5, d);
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    float t = u_time * u_speed;
+    
+    // Multiple blobs
+    float b1 = blob(st, vec2(0.5 + sin(t) * 0.3, 0.5 + cos(t * 0.7) * 0.3), u_blobSize);
+    float b2 = blob(st, vec2(0.5 + cos(t * 0.8) * 0.3, 0.5 + sin(t * 0.9) * 0.3), u_blobSize * 0.8);
+    float b3 = blob(st, vec2(0.5 + sin(t * 1.1) * 0.2, 0.5 + cos(t * 1.3) * 0.2), u_blobSize * 1.2);
+    float b4 = blob(st, vec2(0.5 + cos(t * 0.6) * 0.25, 0.5 + sin(t * 0.5) * 0.25), u_blobSize * 0.9);
+    
+    // Combine blobs
+    float blobs = b1 + b2 + b3 + b4;
+    blobs = smoothstep(0.4, 0.6, blobs);
+    
+    // Colors
+    vec3 color1 = vec3(1.0, 0.2, 0.1);
+    vec3 color2 = vec3(1.0, 0.8, 0.2);
+    vec3 color3 = vec3(0.2, 0.1, 0.3);
+    
+    vec3 color = mix(color3, color1, blobs);
+    color = mix(color, color2, sin(blobs * 3.14159 + t * u_colorShift) * 0.5 + 0.5);
+    
+    // Add some variation
+    color += vec3(sin(st.y * 10.0 + t), cos(st.x * 10.0 + t), sin((st.x + st.y) * 10.0 + t)) * 0.05;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_blobSize: { type: 'float', value: 0.2, min: 0.05, max: 0.5, step: 0.01, name: 'Blob Size' },
+            u_speed: { type: 'float', value: 0.3, min: 0.1, max: 2.0, step: 0.1, name: 'Animation Speed' },
+            u_colorShift: { type: 'float', value: 1.0, min: 0.0, max: 3.0, step: 0.1, name: 'Color Shift Speed' }
+        }
+    },
+    
+    starfield: {
+        name: "Starfield",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_speed;
+uniform float u_layers;
+uniform float u_brightness;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+float star(vec2 st, float size) {
+    float d = length(st);
+    float star = 1.0 - smoothstep(0.0, size, d);
+    
+    // Add cross effect
+    star += (1.0 - smoothstep(0.0, size * 0.1, abs(st.x))) * 0.5;
+    star += (1.0 - smoothstep(0.0, size * 0.1, abs(st.y))) * 0.5;
+    
+    return star;
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    st -= 0.5;
+    st.x *= u_resolution.x / u_resolution.y;
+    
+    vec3 color = vec3(0.0);
+    
+    // Multiple layers of stars
+    for (float i = 0.0; i < 5.0; i++) {
+        if (i >= u_layers) break;
+        
+        vec2 pos = st;
+        float z = fract(i / 5.0 + u_time * u_speed * (i + 1.0) * 0.1);
+        
+        // Zoom effect
+        pos /= z;
+        
+        // Tile space
+        vec2 id = floor(pos * 10.0);
+        vec2 gv = fract(pos * 10.0) - 0.5;
+        
+        // Random offset per cell
+        vec2 offset = vec2(random(id), random(id + 100.0)) - 0.5;
+        gv += offset * 0.4;
+        
+        // Random size and brightness
+        float size = random(id + 200.0) * 0.05 + 0.01;
+        float brightness = random(id + 300.0) * u_brightness;
+        
+        // Draw star
+        float s = star(gv, size * z);
+        
+        // Fade based on z
+        s *= smoothstep(1.0, 0.0, z);
+        s *= smoothstep(0.0, 0.1, z);
+        
+        // Add color variation
+        vec3 starColor = vec3(1.0);
+        starColor.r += random(id + 400.0) * 0.3;
+        starColor.b += random(id + 500.0) * 0.3;
+        
+        color += starColor * s * brightness;
+    }
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_speed: { type: 'float', value: 0.5, min: 0.0, max: 2.0, step: 0.1, name: 'Warp Speed' },
+            u_layers: { type: 'float', value: 5.0, min: 1.0, max: 5.0, step: 1.0, name: 'Star Layers' },
+            u_brightness: { type: 'float', value: 1.0, min: 0.1, max: 3.0, step: 0.1, name: 'Star Brightness' }
+        }
+    },
+    
+    fluidSimulation: {
+        name: "Fluid Simulation",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_viscosity;
+uniform float u_vorticity;
+
+vec2 hash(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+    const float K1 = 0.366025404;
+    const float K2 = 0.211324865;
+    
+    vec2 i = floor(p + (p.x + p.y) * K1);
+    vec2 a = p - i + (i.x + i.y) * K2;
+    vec2 o = (a.x > a.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec2 b = a - o + K2;
+    vec2 c = a - 1.0 + 2.0 * K2;
+    
+    vec3 h = max(0.5 - vec3(dot(a, a), dot(b, b), dot(c, c)), 0.0);
+    vec3 n = h * h * h * h * vec3(dot(a, hash(i + 0.0)), dot(b, hash(i + o)), dot(c, hash(i + 1.0)));
+    
+    return dot(n, vec3(70.0));
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    vec2 mouse = u_mouse / u_resolution;
+    
+    // Create flow field
+    vec2 flow = vec2(0.0);
+    float scale = 3.0;
+    
+    for (float i = 0.0; i < 3.0; i++) {
+        float n1 = noise((st + vec2(u_time * 0.1, 0.0)) * scale + i * 100.0);
+        float n2 = noise((st + vec2(0.0, u_time * 0.1)) * scale + i * 200.0);
+        flow += vec2(n1, n2) / (i + 1.0);
+        scale *= 2.0;
+    }
+    
+    // Add mouse influence
+    vec2 toMouse = mouse - st;
+    float mouseDist = length(toMouse);
+    flow += normalize(toMouse) * (1.0 / (mouseDist * 10.0 + 1.0)) * u_vorticity;
+    
+    // Apply viscosity
+    flow *= u_viscosity;
+    
+    // Visualize flow
+    float angle = atan(flow.y, flow.x);
+    float magnitude = length(flow);
+    
+    // Color based on flow
+    vec3 color = 0.5 + 0.5 * cos(angle + vec3(0.0, 2.0, 4.0));
+    color *= magnitude;
+    
+    // Add some base color
+    color += vec3(0.1, 0.15, 0.2);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_viscosity: { type: 'float', value: 0.5, min: 0.1, max: 1.0, step: 0.05, name: 'Viscosity' },
+            u_vorticity: { type: 'float', value: 1.0, min: 0.0, max: 3.0, step: 0.1, name: 'Vorticity' }
+        }
+    },
+    
+    circuitBoard: {
+        name: "Circuit Board",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_complexity;
+uniform float u_glow;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+float circuit(vec2 st) {
+    vec2 grid = floor(st);
+    vec2 fpos = fract(st);
+    
+    float rnd = random(grid);
+    
+    // Create different circuit patterns
+    float pattern = 0.0;
+    
+    if (rnd < 0.5) {
+        // Straight lines
+        pattern = step(0.45, fpos.x) * step(fpos.x, 0.55);
+        pattern += step(0.45, fpos.y) * step(fpos.y, 0.55);
+    } else if (rnd < 0.7) {
+        // Corner
+        pattern = step(0.45, fpos.x) * step(fpos.x, 0.55) * step(0.5, fpos.y);
+        pattern += step(0.45, fpos.y) * step(fpos.y, 0.55) * step(0.5, fpos.x);
+    } else if (rnd < 0.9) {
+        // Junction
+        pattern = step(0.45, fpos.x) * step(fpos.x, 0.55);
+        pattern += step(0.45, fpos.y) * step(fpos.y, 0.55);
+    }
+    
+    // Add nodes
+    float node = length(fpos - 0.5) < 0.1 ? 1.0 : 0.0;
+    
+    return max(pattern, node);
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    st *= u_complexity;
+    
+    // Animated offset
+    st += vec2(u_time * 0.1, 0.0);
+    
+    float c = circuit(st);
+    
+    // Glow effect
+    vec3 color = vec3(0.0);
+    for (float i = -2.0; i <= 2.0; i++) {
+        for (float j = -2.0; j <= 2.0; j++) {
+            vec2 offset = vec2(i, j) / u_resolution * u_complexity;
+            float sample = circuit(st + offset);
+            float dist = length(vec2(i, j));
+            color += vec3(0.0, 1.0, 0.5) * sample * exp(-dist * u_glow);
+        }
+    }
+    
+    // Add base circuit
+    color += vec3(0.0, 1.0, 0.0) * c;
+    
+    // Add some variation
+    color *= 0.8 + 0.2 * sin(u_time + st.x * 10.0);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_complexity: { type: 'float', value: 20.0, min: 5.0, max: 50.0, step: 1.0, name: 'Circuit Density' },
+            u_glow: { type: 'float', value: 0.5, min: 0.1, max: 2.0, step: 0.1, name: 'Glow Intensity' }
+        }
+    },
+    
+    galaxySpiral: {
+        name: "Galaxy Spiral",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_arms;
+uniform float u_rotation;
+uniform float u_density;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+float noise(vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+    
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+    
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+void main() {
+    vec2 st = (gl_FragCoord.xy - u_resolution * 0.5) / min(u_resolution.x, u_resolution.y);
+    
+    float r = length(st);
+    float a = atan(st.y, st.x);
+    
+    // Spiral arms
+    float spiral = 0.0;
+    for (float i = 0.0; i < 6.0; i++) {
+        if (i >= u_arms) break;
+        float armAngle = a + i * 6.28318 / u_arms + r * u_rotation + u_time * 0.1;
+        float arm = sin(armAngle) * 0.5 + 0.5;
+        arm = pow(arm, 3.0);
+        arm *= exp(-r * 2.0);
+        spiral += arm;
+    }
+    
+    // Add stars
+    vec2 starPos = st * 50.0;
+    float stars = 0.0;
+    for (float i = 0.0; i < 3.0; i++) {
+        float n = noise(starPos + i * 100.0);
+        stars += pow(n, 20.0) * u_density;
+        starPos *= 2.0;
+    }
+    
+    // Core glow
+    float core = exp(-r * 3.0);
+    
+    // Colors
+    vec3 color = vec3(0.0);
+    color += vec3(0.8, 0.6, 1.0) * spiral;
+    color += vec3(1.0, 0.9, 0.7) * stars;
+    color += vec3(1.0, 0.8, 0.6) * core;
+    
+    // Add some nebula colors
+    color += vec3(0.3, 0.1, 0.4) * noise(st * 5.0 + u_time * 0.05) * (1.0 - r);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_arms: { type: 'float', value: 3.0, min: 1.0, max: 6.0, step: 1.0, name: 'Spiral Arms' },
+            u_rotation: { type: 'float', value: 3.0, min: 0.0, max: 10.0, step: 0.1, name: 'Spiral Tightness' },
+            u_density: { type: 'float', value: 0.5, min: 0.0, max: 1.0, step: 0.05, name: 'Star Density' }
+        }
+    },
+    
+    dnaHelix: {
+        name: "DNA Helix",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_twist;
+uniform float u_strands;
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 st = (gl_FragCoord.xy - u_resolution * 0.5) / min(u_resolution.x, u_resolution.y);
+    
+    float y = st.y * 5.0 - u_time;
+    float x = st.x * 10.0;
+    
+    vec3 color = vec3(0.0);
+    
+    // DNA strands
+    for (float i = 0.0; i < 4.0; i++) {
+        if (i >= u_strands) break;
+        
+        float offset = i * 3.14159 / 2.0;
+        float strand = sin(y * u_twist + offset) * 0.3;
+        float dist = abs(x - strand);
+        
+        // Strand thickness
+        float thickness = 0.05;
+        float strandMask = smoothstep(thickness, thickness * 0.5, dist);
+        
+        // Color based on position
+        vec3 strandColor = hsv2rgb(vec3(i * 0.25 + y * 0.1, 0.8, 1.0));
+        color += strandColor * strandMask;
+        
+        // Connections between strands
+        if (i < u_strands - 1.0) {
+            float nextStrand = sin(y * u_twist + (i + 1.0) * 3.14159 / 2.0) * 0.3;
+            float connection = step(min(strand, nextStrand), x) * step(x, max(strand, nextStrand));
+            connection *= step(0.0, sin(y * u_twist * 2.0 + i * 3.14159));
+            connection *= 0.5;
+            color += vec3(0.5, 0.5, 1.0) * connection;
+        }
+    }
+    
+    // Glow effect
+    float glow = 0.0;
+    for (float i = 0.0; i < 4.0; i++) {
+        if (i >= u_strands) break;
+        float offset = i * 3.14159 / 2.0;
+        float strand = sin(y * u_twist + offset) * 0.3;
+        float dist = abs(x - strand);
+        glow += exp(-dist * 10.0);
+    }
+    color += vec3(0.2, 0.3, 0.5) * glow * 0.3;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_twist: { type: 'float', value: 1.0, min: 0.5, max: 3.0, step: 0.1, name: 'Twist Rate' },
+            u_strands: { type: 'float', value: 2.0, min: 1.0, max: 4.0, step: 1.0, name: 'Number of Strands' }
+        }
+    },
+    
+    aurora: {
+        name: "Aurora Borealis",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_intensity;
+uniform float u_speed;
+
+float noise(vec2 p) {
+    return sin(p.x * 10.0) * sin(p.y * 10.0);
+}
+
+float fbm(vec2 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 0.0;
+    
+    for (int i = 0; i < 6; i++) {
+        value += amplitude * noise(p);
+        p *= 2.0;
+        amplitude *= 0.5;
+    }
+    
+    return value;
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    // Create flowing bands
+    float y = st.y;
+    float x = st.x;
+    
+    float band1 = sin(x * 3.0 + u_time * u_speed) * 0.1;
+    float band2 = sin(x * 5.0 - u_time * u_speed * 0.7) * 0.15;
+    float band3 = sin(x * 7.0 + u_time * u_speed * 1.3) * 0.1;
+    
+    float bands = band1 + band2 + band3 + 0.5;
+    
+    // Add noise for organic movement
+    bands += fbm(vec2(x * 2.0, u_time * 0.1)) * 0.2;
+    
+    // Create aurora shape
+    float aurora = 0.0;
+    aurora += exp(-abs(y - bands) * 5.0) * u_intensity;
+    aurora += exp(-abs(y - bands) * 10.0) * u_intensity * 0.5;
+    aurora += exp(-abs(y - bands) * 20.0) * u_intensity * 0.25;
+    
+    // Colors
+    vec3 color = vec3(0.0);
+    color += vec3(0.0, 1.0, 0.3) * aurora;
+    color += vec3(0.0, 0.5, 1.0) * aurora * 0.5;
+    color += vec3(1.0, 0.0, 0.5) * aurora * 0.2;
+    
+    // Add stars
+    float stars = pow(noise(st * 100.0), 20.0) * (1.0 - aurora);
+    color += vec3(stars);
+    
+    // Atmosphere
+    color += vec3(0.0, 0.0, 0.1) * (1.0 - y);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_intensity: { type: 'float', value: 1.0, min: 0.5, max: 3.0, step: 0.1, name: 'Aurora Intensity' },
+            u_speed: { type: 'float', value: 0.5, min: 0.1, max: 2.0, step: 0.1, name: 'Flow Speed' }
+        }
+    },
+    
+    meshGradient: {
+        name: "Mesh Gradient",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_meshPoints;
+uniform float u_smoothness;
+uniform float u_grainAmount;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    vec3 color = vec3(0.0);
+    float totalWeight = 0.0;
+    
+    // Create mesh points
+    for (float i = 0.0; i < 16.0; i++) {
+        if (i >= u_meshPoints * u_meshPoints) break;
+        
+        float x = mod(i, u_meshPoints) / (u_meshPoints - 1.0);
+        float y = floor(i / u_meshPoints) / (u_meshPoints - 1.0);
+        
+        vec2 point = vec2(x, y);
+        
+        // Animate points
+        point += vec2(
+            sin(u_time * 0.5 + i * 0.5) * 0.1,
+            cos(u_time * 0.3 + i * 0.7) * 0.1
+        );
+        
+        float dist = distance(st, point);
+        float weight = 1.0 / pow(dist + 0.01, u_smoothness);
+        
+        // Color for this point
+        vec3 pointColor = hsv2rgb(vec3(
+            i * 0.1 + u_time * 0.05,
+            0.7,
+            0.9
+        ));
+        
+        color += pointColor * weight;
+        totalWeight += weight;
+    }
+    
+    color /= totalWeight;
+    
+    // Add grain
+    float grain = random(st + fract(u_time)) * 2.0 - 1.0;
+    color += grain * u_grainAmount;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_meshPoints: { type: 'float', value: 4.0, min: 2.0, max: 6.0, step: 1.0, name: 'Mesh Points' },
+            u_smoothness: { type: 'float', value: 2.0, min: 0.5, max: 4.0, step: 0.1, name: 'Smoothness' },
+            u_grainAmount: { type: 'float', value: 0.05, min: 0.0, max: 0.2, step: 0.01, name: 'Grain Amount' }
+        }
+    },
+    
+    gradientNoise: {
+        name: "Gradient Noise",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_scale;
+uniform float u_noiseAmount;
+uniform float u_colorShift;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+float noise(vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+    
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+    
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    // Base gradient
+    vec3 color1 = vec3(0.1, 0.2, 0.5);
+    vec3 color2 = vec3(0.9, 0.1, 0.3);
+    vec3 color3 = vec3(0.1, 0.9, 0.5);
+    vec3 color4 = vec3(0.9, 0.7, 0.1);
+    
+    // Shift colors over time
+    float t = u_time * u_colorShift;
+    color1 = 0.5 + 0.5 * cos(t + color1 * 6.28318 + vec3(0, 2, 4));
+    color2 = 0.5 + 0.5 * cos(t + color2 * 6.28318 + vec3(1, 3, 5));
+    color3 = 0.5 + 0.5 * cos(t + color3 * 6.28318 + vec3(2, 4, 0));
+    color4 = 0.5 + 0.5 * cos(t + color4 * 6.28318 + vec3(3, 5, 1));
+    
+    // Bilinear interpolation
+    vec3 color = mix(
+        mix(color1, color2, st.x),
+        mix(color3, color4, st.x),
+        st.y
+    );
+    
+    // Add flowing noise
+    float n = 0.0;
+    vec2 pos = st * u_scale;
+    for (float i = 0.0; i < 3.0; i++) {
+        n += noise(pos + vec2(u_time * 0.1, u_time * 0.15) * (i + 1.0)) / (i + 1.0);
+        pos *= 2.0;
+    }
+    
+    color += n * u_noiseAmount;
+    
+    // Film grain
+    float grain = random(st + fract(u_time * 100.0)) * 0.05;
+    color += vec3(grain);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_scale: { type: 'float', value: 3.0, min: 1.0, max: 10.0, step: 0.1, name: 'Noise Scale' },
+            u_noiseAmount: { type: 'float', value: 0.2, min: 0.0, max: 0.5, step: 0.01, name: 'Noise Amount' },
+            u_colorShift: { type: 'float', value: 0.1, min: 0.0, max: 1.0, step: 0.01, name: 'Color Shift Speed' }
+        }
+    },
+    
+    liquidMetal: {
+        name: "Liquid Metal",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_metallic;
+uniform float u_viscosity;
+uniform float u_refraction;
+
+float noise(vec2 p) {
+    return sin(p.x * 10.0) * sin(p.y * 10.0);
+}
+
+float fbm(vec2 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    
+    for (int i = 0; i < 4; i++) {
+        value += amplitude * noise(p);
+        p *= 2.0;
+        amplitude *= 0.5;
+    }
+    
+    return value;
+}
+
+vec3 getNormal(vec2 p) {
+    float eps = 0.01;
+    float h = fbm(p);
+    float hx = fbm(p + vec2(eps, 0.0));
+    float hy = fbm(p + vec2(0.0, eps));
+    
+    return normalize(vec3((h - hx) / eps, (h - hy) / eps, 1.0));
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    vec2 mouse = u_mouse / u_resolution;
+    
+    // Create flowing liquid surface
+    vec2 p = st * 5.0;
+    p += vec2(u_time * 0.1, u_time * 0.05);
+    
+    // Add mouse interaction
+    vec2 toMouse = st - mouse;
+    float mouseDist = length(toMouse);
+    float mouseInfluence = exp(-mouseDist * 5.0) * 2.0;
+    p += normalize(toMouse) * mouseInfluence * u_viscosity;
+    
+    // Get surface normal
+    vec3 normal = getNormal(p);
+    
+    // Lighting
+    vec3 lightDir = normalize(vec3(mouse - 0.5, 0.5));
+    float diffuse = max(dot(normal, lightDir), 0.0);
+    
+    // View direction (straight down)
+    vec3 viewDir = vec3(0.0, 0.0, 1.0);
+    
+    // Reflection
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    
+    // Refraction effect
+    vec2 refractedUV = st + normal.xy * u_refraction * 0.1;
+    float refractPattern = fbm(refractedUV * 10.0 + u_time * 0.2);
+    
+    // Metallic color
+    vec3 baseColor = vec3(0.7, 0.7, 0.8);
+    vec3 color = baseColor * diffuse;
+    color += vec3(1.0) * spec * u_metallic;
+    
+    // Add chromatic aberration for metallic look
+    color.r += fbm(p + vec2(0.01, 0.0)) * 0.1;
+    color.b += fbm(p - vec2(0.01, 0.0)) * 0.1;
+    
+    // Environment reflection simulation
+    float env = fbm(reflect(vec3(st - 0.5, 0.0), normal).xy * 5.0);
+    color += vec3(0.5, 0.6, 0.7) * env * 0.3 * u_metallic;
+    
+    // Add ripples from refraction
+    color += refractPattern * 0.1;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_metallic: { type: 'float', value: 0.8, min: 0.0, max: 1.0, step: 0.05, name: 'Metallic' },
+            u_viscosity: { type: 'float', value: 0.5, min: 0.0, max: 1.0, step: 0.05, name: 'Viscosity' },
+            u_refraction: { type: 'float', value: 0.5, min: 0.0, max: 1.0, step: 0.05, name: 'Refraction' }
+        }
+    },
+    
+    holographicGradient: {
+        name: "Holographic Gradient",
+        vertex: `
+attribute vec4 aVertexPosition;
+void main() {
+    gl_Position = aVertexPosition;
+}`,
+        fragment: `
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_iridescence;
+uniform float u_grainIntensity;
+uniform float u_waveFrequency;
+
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution;
+    
+    // Create holographic waves
+    float wave1 = sin(st.x * u_waveFrequency + u_time) * 0.5 + 0.5;
+    float wave2 = sin(st.y * u_waveFrequency * 0.7 + u_time * 1.3) * 0.5 + 0.5;
+    float wave3 = sin((st.x + st.y) * u_waveFrequency * 0.5 + u_time * 0.8) * 0.5 + 0.5;
+    
+    // Combine waves for interference pattern
+    float interference = wave1 * wave2 * wave3;
+    
+    // Create iridescent color shift
+    float hue = interference + st.x * 0.3 + st.y * 0.2 + u_time * 0.1;
+    vec3 color = hsv2rgb(vec3(hue * u_iridescence, 0.7, 0.9));
+    
+    // Add metallic sheen
+    float sheen = pow(wave1 * wave2, 2.0);
+    color += vec3(sheen) * 0.3;
+    
+    // Holographic sparkles
+    float sparkle = pow(random(floor(st * 100.0) + floor(u_time * 10.0)), 20.0);
+    color += vec3(sparkle);
+    
+    // Film grain for texture
+    float grain = (random(st + fract(u_time * 100.0)) - 0.5) * u_grainIntensity;
+    color += vec3(grain);
+    
+    // Subtle vignette
+    float vignette = 1.0 - length(st - 0.5) * 0.5;
+    color *= vignette;
+    
+    gl_FragColor = vec4(color, 1.0);
+}`,
+        uniforms: {
+            u_iridescence: { type: 'float', value: 2.0, min: 0.5, max: 5.0, step: 0.1, name: 'Iridescence' },
+            u_grainIntensity: { type: 'float', value: 0.05, min: 0.0, max: 0.2, step: 0.01, name: 'Grain Intensity' },
+            u_waveFrequency: { type: 'float', value: 10.0, min: 5.0, max: 30.0, step: 1.0, name: 'Wave Frequency' }
+        }
     }
 };
 
@@ -987,6 +2173,9 @@ initSyntaxHighlighting();
 
 // Check for auto-saved work
 loadAutoSave();
+
+// Initialize time
+baseTime = performance.now() / 1000.0;
 
 // Basic syntax highlighting
 function highlightShaderCode(code, type) {
@@ -1313,9 +2502,44 @@ function compileAndRun() {
 }
 
 function render(now) {
+    // Calculate time based on play state and speed
+    let time;
+    if (isPlaying) {
+        time = (now / 1000.0 - baseTime) * timeSpeed;
+    } else {
+        time = pausedTime;
+    }
+    
     if (programInfo) {
-        const time = (now - startTime) / 1000.0;
         drawScene(gl, programInfo, buffers, time, mouse);
+    }
+    
+    // Comparison canvas
+    if (isComparisonMode && comparisonProgram) {
+        const rect = comparisonCanvas.getBoundingClientRect();
+        comparisonCanvas.width = rect.width * window.devicePixelRatio;
+        comparisonCanvas.height = rect.height * window.devicePixelRatio;
+        comparisonGL.viewport(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+        
+        // Draw comparison shader
+        const compProgramInfo = {
+            program: comparisonProgram,
+            attribLocations: {
+                vertexPosition: comparisonGL.getAttribLocation(comparisonProgram, 'aVertexPosition'),
+            },
+            uniformLocations: {
+                u_time: comparisonGL.getUniformLocation(comparisonProgram, 'u_time'),
+                u_resolution: comparisonGL.getUniformLocation(comparisonProgram, 'u_resolution'),
+                u_mouse: comparisonGL.getUniformLocation(comparisonProgram, 'u_mouse'),
+            }
+        };
+        
+        // Add custom uniforms
+        for (const name in comparisonShader.uniforms) {
+            compProgramInfo.uniformLocations[name] = comparisonGL.getUniformLocation(comparisonProgram, name);
+        }
+        
+        drawScene(comparisonGL, compProgramInfo, comparisonBuffers, time, mouse, comparisonShader.uniforms);
     }
     
     // FPS calculation
@@ -1360,7 +2584,7 @@ function initBuffers(gl) {
     return { position: positionBuffer };
 }
 
-function drawScene(gl, programInfo, buffers, time, mouse) {
+function drawScene(gl, programInfo, buffers, time, mouse, customUniforms = uniformValues) {
     performanceStats.drawCalls++;
     
     gl.clearColor(0, 0, 0, 1);
@@ -1391,7 +2615,7 @@ function drawScene(gl, programInfo, buffers, time, mouse) {
     }
     
     // Custom uniforms from parameter controls
-    for (const [key, value] of Object.entries(uniformValues)) {
+    for (const [key, value] of Object.entries(customUniforms)) {
         if (uniforms[key]) {
             gl.uniform1f(uniforms[key], value);
         }
@@ -2164,7 +3388,7 @@ keyboardShortcuts.addEventListener('click', (e) => {
 
 // Generate shader documentation
 function generateShaderDocs() {
-    const shader = shaders[currentShader];
+    const shader = SHADERS[currentShader];
     if (!shader) return '';
     
     let docs = `# ${shader.name || currentShader} Shader Documentation\n\n`;
@@ -2300,3 +3524,141 @@ function clearErrorHighlights() {
         child.classList.remove('error-line');
     });
 }
+
+// Time control handlers
+playPauseBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    if (isPlaying) {
+        playPauseIcon.textContent = '⏸';
+        baseTime = performance.now() / 1000.0 - pausedTime;
+    } else {
+        playPauseIcon.textContent = '▶';
+        pausedTime = (performance.now() / 1000.0 - baseTime) * timeSpeed;
+    }
+});
+
+resetTimeBtn.addEventListener('click', () => {
+    baseTime = performance.now() / 1000.0;
+    pausedTime = 0;
+});
+
+speedSlider.addEventListener('input', (e) => {
+    timeSpeed = parseFloat(e.target.value);
+    speedDisplay.textContent = timeSpeed.toFixed(1) + 'x';
+    if (isPlaying) {
+        const currentTime = (performance.now() / 1000.0 - baseTime) * timeSpeed;
+        baseTime = performance.now() / 1000.0 - currentTime / timeSpeed;
+    }
+});
+
+// Screenshot functionality
+screenshotBtn.addEventListener('click', () => {
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `shader_${Date.now()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        log('✓ Screenshot saved', 'success');
+    });
+});
+
+// Code snippets
+function buildSnippetsMenu() {
+    snippetsMenu.innerHTML = '';
+    
+    for (const [key, snippet] of Object.entries(codeSnippets)) {
+        const item = document.createElement('div');
+        item.className = 'snippet-item';
+        item.innerHTML = `
+            <div class="snippet-title">${snippet.title}</div>
+            <div class="snippet-preview">${snippet.code.split('\n')[0]}</div>
+        `;
+        
+        item.addEventListener('click', () => {
+            const activeEditor = document.activeElement;
+            if (activeEditor === vertexEditor || activeEditor === fragmentEditor) {
+                const start = activeEditor.selectionStart;
+                const end = activeEditor.selectionEnd;
+                const text = activeEditor.value;
+                
+                activeEditor.value = text.substring(0, start) + snippet.code + text.substring(end);
+                activeEditor.setSelectionRange(start, start + snippet.code.length);
+                activeEditor.focus();
+                
+                // Trigger input event for auto-save
+                activeEditor.dispatchEvent(new Event('input'));
+            }
+            snippetsMenu.classList.remove('active');
+            log('✓ Snippet inserted', 'success');
+        });
+        
+        snippetsMenu.appendChild(item);
+    }
+}
+
+snippetsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    snippetsMenu.classList.toggle('active');
+});
+
+document.addEventListener('click', (e) => {
+    if (!snippetsMenu.contains(e.target) && e.target !== snippetsBtn) {
+        snippetsMenu.classList.remove('active');
+    }
+});
+
+buildSnippetsMenu();
+
+// Comparison mode
+let isComparisonMode = false;
+
+function toggleComparisonMode() {
+    isComparisonMode = !isComparisonMode;
+    
+    if (isComparisonMode) {
+        // Initialize comparison canvas
+        comparisonGL = comparisonCanvas.getContext('webgl');
+        if (!comparisonGL) {
+            log('✗ Comparison mode requires WebGL', 'error');
+            return;
+        }
+        
+        comparisonCanvas.classList.add('active');
+        comparisonMode.classList.add('active');
+        
+        // Store current shader as comparison
+        comparisonShader = {
+            vertex: vertexEditor.value,
+            fragment: fragmentEditor.value,
+            uniforms: { ...uniformValues }
+        };
+        
+        // Initialize comparison shader
+        try {
+            const vsShader = loadShaderSource(comparisonGL, comparisonGL.VERTEX_SHADER, comparisonShader.vertex);
+            const fsShader = loadShaderSource(comparisonGL, comparisonGL.FRAGMENT_SHADER, comparisonShader.fragment);
+            comparisonProgram = initShaderProgram(comparisonGL, vsShader, fsShader);
+            comparisonBuffers = initBuffers(comparisonGL);
+            
+            log('✓ Comparison mode enabled - edit shader to see differences', 'success');
+        } catch (e) {
+            log('✗ Failed to initialize comparison shader', 'error');
+            toggleComparisonMode();
+        }
+    } else {
+        comparisonCanvas.classList.remove('active');
+        comparisonMode.classList.remove('active');
+        comparisonShader = null;
+        comparisonProgram = null;
+    }
+}
+
+// Add comparison toggle with keyboard shortcut
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        toggleComparisonMode();
+    }
+});

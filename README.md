@@ -10,7 +10,7 @@ A powerful, browser-based WebGL shader editor with real-time preview, built with
 ### Core Features
 - **Real-time Shader Compilation** - See your changes instantly as you type
 - **Dual Editor Mode** - Separate vertex and fragment shader editors with syntax highlighting
-- **12 Built-in Shader Presets** - From simple gradients to complex 3D fractals
+- **25 Built-in Shader Presets** - From simple gradients to complex 3D fractals
 - **Interactive Canvas** - Mouse interaction for dynamic effects
 - **Performance Monitoring** - FPS counter with detailed GPU statistics
 
@@ -106,6 +106,19 @@ void main() {
 - **Mandelbrot Fractal** - Explore infinite mathematical beauty
 - **Fractal Noise** - Multi-octave Perlin noise
 - **Psychedelic Tunnel** - Animated tunnel effect
+- **Matrix Rain** - Digital rain effect inspired by The Matrix
+- **Neon Grid** - Retro synthwave grid with perspective
+- **Lava Lamp** - Mesmerizing fluid blob simulation
+- **Starfield** - Infinite space with warp speed effect
+- **Fluid Simulation** - Interactive fluid dynamics
+- **Circuit Board** - Animated cyberpunk circuit patterns
+- **Galaxy Spiral** - Rotating spiral galaxy with stars
+- **DNA Helix** - Double helix structure animation
+- **Aurora Borealis** - Northern lights in the sky
+- **Mesh Gradient** - Smooth animated gradients with grain
+- **Gradient Noise** - Flowing gradients with organic noise
+- **Liquid Metal** - Interactive metallic surface
+- **Holographic Gradient** - Iridescent holographic effects
 
 ## 📝 Shader Development
 
